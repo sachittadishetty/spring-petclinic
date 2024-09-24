@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pet-clinic
+  namespace: "pet-clinic"
+  labels:
+    app: pet-clinic
+spec:
+  selector:
+    matchLabels:
+      app: pet-clinic
+  template:
+    metadata:
+      labels:
+        app: pet-clinic
+    spec:
+      containers:
+      - name: pet-clinic
+        image: "010928223018.dkr.ecr.us-east-1.amazonaws.com/pet_clinic:#{build_id}#"
+        ports:
+        - containerPort: 8080
+        env: # This is where you specify environment variables
+        - name: ENVIRONMENT
+          value: "integration"
+        - name: spring_profiles_active
+          value: "postgres"
+        - name: POSTGRES_URL
+          value: "jdbc:postgresql://database-2.cd4qe0q4u7wr.us-east-1.rds.amazonaws.com:5432/postgres"
+        - name: POSTGRES_USER
+          value : "postgres"
+        - name: POSTGRES_PASS
+          value: "postgres003"
+        
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pet-clinic-service
+  namespace: "pet-clinic"
+spec:
+  selector:
+    app: pet-clinic
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: NodePort
+
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: "pet-clinic"
+  name: pet-clinic
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance
+    kubernetes.io/ingress.class: alb
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: pet-clinic-service
+            port:
+              number: 8080
